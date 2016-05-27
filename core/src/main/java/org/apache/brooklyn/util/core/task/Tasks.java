@@ -18,8 +18,10 @@
  */
 package org.apache.brooklyn.util.core.task;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -160,6 +162,14 @@ public class Tasks {
      */
     public static <T> T resolveDeepValue(Object v, Class<T> type, ExecutionContext exec, String contextMessage) throws ExecutionException, InterruptedException {
         return new ValueResolver<T>(v, type).context(exec).deep(true).description(contextMessage).get();
+    }
+
+    public static Object resolveValueSmartly(Object v, Class<?> type, @Nullable ExecutionContext exec, String contextMessage) throws ExecutionException, InterruptedException {
+        if (v instanceof Collection || v instanceof Map) {
+            return Tasks.resolveDeepValue(v, Object.class, exec, contextMessage);
+        } else {
+            return Tasks.resolveValue(v, type, exec, contextMessage);
+        }
     }
 
     /** sets extra status details on the current task, if possible (otherwise does nothing).

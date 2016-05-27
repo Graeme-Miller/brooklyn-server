@@ -21,11 +21,18 @@ package org.apache.brooklyn.core.entity.internal;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.brooklyn.util.groovy.GroovyJavaMethods.elvis;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import org.apache.brooklyn.api.mgmt.ExecutionContext;
 import org.apache.brooklyn.api.mgmt.Task;
@@ -39,15 +46,10 @@ import org.apache.brooklyn.util.collections.MutableMap;
 import org.apache.brooklyn.util.core.config.ConfigBag;
 import org.apache.brooklyn.util.core.flags.FlagUtils;
 import org.apache.brooklyn.util.core.flags.SetFromFlag;
-import org.apache.brooklyn.util.core.flags.TypeCoercions;
 import org.apache.brooklyn.util.core.internal.ConfigKeySelfExtracting;
+import org.apache.brooklyn.util.core.task.Tasks;
+import org.apache.brooklyn.util.exceptions.Exceptions;
 import org.apache.brooklyn.util.guava.Maybe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 public class EntityConfigMap extends AbstractConfigMapImpl {
 
@@ -109,17 +111,16 @@ public class EntityConfigMap extends AbstractConfigMapImpl {
         // Long term, we'll just persist tasks properly so the call to onConfigChanged will go!
 
         // Don't use groovy truth: if the set value is e.g. 0, then would ignore set value and return default!
+        ExecutionContext exec = entity.getExecutionContext();
         if (ownKey instanceof ConfigKeySelfExtracting) {
             Object rawval = ownConfig.get(key);
             T result = null;
             boolean complete = false;
             if (((ConfigKeySelfExtracting<T>)ownKey).isSet(ownConfig)) {
-                ExecutionContext exec = entity.getExecutionContext();
                 result = ((ConfigKeySelfExtracting<T>)ownKey).extractValue(ownConfig, exec);
                 complete = true;
             } else if (isInherited(ownKey, inheritance) && 
                     ((ConfigKeySelfExtracting<T>)ownKey).isSet(inheritedConfig)) {
-                ExecutionContext exec = entity.getExecutionContext();
                 result = ((ConfigKeySelfExtracting<T>)ownKey).extractValue(inheritedConfig, exec);
                 complete = true;
             } else if (localConfigBag.containsKey(ownKey)) {
@@ -141,7 +142,14 @@ public class EntityConfigMap extends AbstractConfigMapImpl {
         } else {
             LOG.warn("Config key {} of {} is not a ConfigKeySelfExtracting; cannot retrieve value; returning default", ownKey, this);
         }
-        return TypeCoercions.coerce((defaultValue != null) ? defaultValue : ownKey.getDefaultValue(), key.getTypeToken());
+
+        Object defaultValueReal = (defaultValue != null) ? defaultValue : ownKey.getDefaultValue();
+
+        try {
+            return (T) Tasks.resolveValueSmartly(defaultValueReal, ownKey.getType(), exec, "default value of config " + ownKey.getName());
+        } catch (ExecutionException | InterruptedException e) {
+            throw Exceptions.propagate(e);
+        }
     }
 
     private <T> boolean isInherited(ConfigKey<T> key) {
