@@ -820,15 +820,15 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
                 machineLocation = registerJcloudsSshMachineLocation(computeService, node, Optional.fromNullable(template), userCredentials, sshHostAndPortOverride, setup);
             }
 
+            PortForwardManager portForwardManager = setup.get(PORT_FORWARDING_MANAGER);
+            if (portForwardManager == null) {
+                portForwardManager = (PortForwardManager) getManagementContext().getLocationRegistry().getLocationManaged("portForwardManager(scope=global)");
+            }
+
             if (usePortForwarding && sshHostAndPortOverride.isPresent()) {
                 // Now that we have the sshMachineLocation, we can associate the port-forwarding address with it.
-                PortForwardManager portForwardManager = setup.get(PORT_FORWARDING_MANAGER);
-                if (portForwardManager != null) {
-                    portForwardManager.associate(node.getId(), sshHostAndPortOverride.get(), machineLocation, node.getLoginPort());
-                } else {
-                    LOG.warn("No port-forward manager for {} so could not associate {} -> {} for {}",
-                            new Object[] {this, node.getLoginPort(), sshHostAndPortOverride, machineLocation});
-                }
+                portForwardManager.associate(node.getId(), sshHostAndPortOverride.get(), machineLocation, node.getLoginPort());
+
             }
 
             if ("docker".equals(this.getProvider())) {
@@ -836,17 +836,13 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
                     throw new UnsupportedOperationException("Docker not supported on Windows");
                 }
                 Map<Integer, Integer> portMappings = JcloudsUtil.dockerPortMappingsFor(this, node.getId());
-                PortForwardManager portForwardManager = setup.get(PORT_FORWARDING_MANAGER);
-                if (portForwardManager != null) {
-                    for(Integer containerPort : portMappings.keySet()) {
-                        Integer hostPort = portMappings.get(containerPort);
-                        String dockerHost = ((JcloudsSshMachineLocation)machineLocation).getSshHostAndPort().getHostText();
-                        portForwardManager.associate(node.getId(), HostAndPort.fromParts(dockerHost, hostPort), machineLocation, containerPort);
-                    }
-                } else {
-                    LOG.warn("No port-forward manager for {} so could not associate docker port-mappings for {}",
-                            this, machineLocation);
+
+                for(Integer containerPort : portMappings.keySet()) {
+                    Integer hostPort = portMappings.get(containerPort);
+                    String dockerHost = ((JcloudsSshMachineLocation)machineLocation).getSshHostAndPort().getHostText();
+                    portForwardManager.associate(node.getId(), HostAndPort.fromParts(dockerHost, hostPort), machineLocation, containerPort);
                 }
+
             }
 
             List<String> customisationForLogging = new ArrayList<String>();
@@ -2572,25 +2568,30 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
 
     protected void releasePortForwarding(final JcloudsMachineLocation machine) {
         // TODO Implementation needs revisisted. It relies on deprecated PortForwardManager methods.
-
-        boolean usePortForwarding = Boolean.TRUE.equals(machine.getConfig(USE_PORT_FORWARDING));
         final JcloudsPortForwarderExtension portForwarder = machine.getConfig(PORT_FORWARDER);
-        PortForwardManager portForwardManager = machine.getConfig(PORT_FORWARDING_MANAGER);
         final String nodeId = machine.getJcloudsId();
         final Map<String, Runnable> subtasks = Maps.newLinkedHashMap();
 
-        if (portForwarder == null) {
-            LOG.debug("No port-forwarding to close (because portForwarder null) on release of " + machine);
-        } else {
+        PortForwardManager portForwardManager = machine.getConfig(PORT_FORWARDING_MANAGER);
+        if (portForwardManager == null) {
+            portForwardManager = (PortForwardManager) getManagementContext().getLocationRegistry().getLocationManaged("portForwardManager(scope=global)");
+        }
+
+        portForwardManager.forgetPortMappings(machine);
+        if (nodeId != null) {
+            portForwardManager.forgetPortMappings(nodeId);
+        }
+
+        if (portForwarder != null) {
             final Optional<NodeMetadata> node = machine.getOptionalNode();
             // Release the port-forwarding for the login-port, which was explicitly created by JcloudsLocation
-            if (usePortForwarding && node.isPresent()) {
+            if (node.isPresent()) {
                 final HostAndPort hostAndPortOverride;
                 if (machine instanceof SshMachineLocation) {
-                    hostAndPortOverride = ((SshMachineLocation)machine).getSshHostAndPort();
+                    hostAndPortOverride = ((SshMachineLocation) machine).getSshHostAndPort();
                 } else if (machine instanceof WinRmMachineLocation) {
-                    String host = ((WinRmMachineLocation)machine).getAddress().getHostAddress();
-                    int port = ((WinRmMachineLocation)machine).getPort();
+                    String host = ((WinRmMachineLocation) machine).getAddress().getHostAddress();
+                    int port = ((WinRmMachineLocation) machine).getPort();
                     hostAndPortOverride = HostAndPort.fromParts(host, port);
                 } else {
                     LOG.warn("Unexpected machine {} of type {}; expected SSH or WinRM", machine, (machine != null ? machine.getClass() : null));
@@ -2599,10 +2600,10 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
                 if (hostAndPortOverride != null) {
                     final int loginPort = node.get().getLoginPort();
                     subtasks.put(
-                            "Close port-forward "+hostAndPortOverride+"->"+loginPort,
+                            "Close port-forward " + hostAndPortOverride + "->" + loginPort,
                             new Runnable() {
                                 public void run() {
-                                    LOG.debug("Closing port-forwarding at {} for machine {}: {}->{}", new Object[] {this, machine, hostAndPortOverride, loginPort});
+                                    LOG.debug("Closing port-forwarding at {} for machine {}: {}->{}", new Object[]{this, machine, hostAndPortOverride, loginPort});
                                     portForwarder.closePortForwarding(node.get(), loginPort, hostAndPortOverride, Protocol.TCP);
                                 }
                             });
@@ -2611,14 +2612,10 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
 
             // Get all the other port-forwarding mappings for this VM, and release all of those
             Set<PortMapping> mappings;
-            if (portForwardManager != null) {
-                mappings = Sets.newLinkedHashSet();
-                mappings.addAll(portForwardManager.getLocationPublicIpIds(machine));
-                if (nodeId != null) {
-                    mappings.addAll(portForwardManager.getPortMappingWithPublicIpId(nodeId));
-                }
-            } else {
-                mappings = ImmutableSet.of();
+            mappings = Sets.newLinkedHashSet();
+            mappings.addAll(portForwardManager.getLocationPublicIpIds(machine));
+            if (nodeId != null) {
+                mappings.addAll(portForwardManager.getPortMappingWithPublicIpId(nodeId));
             }
 
             for (final PortMapping mapping : mappings) {
@@ -2627,10 +2624,10 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
                 final Protocol protocol = Protocol.TCP;
                 if (publicEndpoint != null && node.isPresent()) {
                     subtasks.put(
-                            "Close port-forward "+publicEndpoint+"->"+targetPort,
+                            "Close port-forward " + publicEndpoint + "->" + targetPort,
                             new Runnable() {
                                 public void run() {
-                                    LOG.debug("Closing port-forwarding at {} for machine {}: {}->{}", new Object[] {this, machine, publicEndpoint, targetPort});
+                                    LOG.debug("Closing port-forwarding at {} for machine {}: {}->{}", new Object[]{this, machine, publicEndpoint, targetPort});
                                     portForwarder.closePortForwarding(node.get(), targetPort, publicEndpoint, protocol);
                                 }
                             });
@@ -2640,34 +2637,26 @@ public class JcloudsLocation extends AbstractCloudMachineProvisioningLocation im
             if (subtasks.size() > 0) {
                 final TaskBuilder<Void> builder = TaskBuilder.<Void>builder()
                         .parallel(true)
-                        .displayName("close port-forwarding at "+machine);
+                        .displayName("close port-forwarding at " + machine);
                 for (Map.Entry<String, Runnable> entry : subtasks.entrySet()) {
                     builder.add(TaskBuilder.builder().displayName(entry.getKey()).body(entry.getValue()).build());
                 }
                 final Task<Void> task = builder.build();
                 final DynamicTasks.TaskQueueingResult<Void> queueResult = DynamicTasks.queueIfPossible(task);
-                if(queueResult.isQueuedOrSubmitted()){
-                    final String origDetails = Tasks.setBlockingDetails("waiting for closing port-forwarding of "+machine);
+                if (queueResult.isQueuedOrSubmitted()) {
+                    final String origDetails = Tasks.setBlockingDetails("waiting for closing port-forwarding of " + machine);
                     try {
                         task.blockUntilEnded();
                     } finally {
                         Tasks.setBlockingDetails(origDetails);
                     }
                 } else {
-                    LOG.warn("Releasing port-forwarding of "+machine+" not executing in execution-context "
+                    LOG.warn("Releasing port-forwarding of " + machine + " not executing in execution-context "
                             + "(e.g. not invoked inside effector); falling back to executing sequentially");
                     for (Runnable subtask : subtasks.values()) {
                         subtask.run();
                     }
                 }
-            }
-        }
-
-        // Forget all port mappings associated with this VM
-        if (portForwardManager != null) {
-            portForwardManager.forgetPortMappings(machine);
-            if (nodeId != null) {
-                portForwardManager.forgetPortMappings(nodeId);
             }
         }
     }
