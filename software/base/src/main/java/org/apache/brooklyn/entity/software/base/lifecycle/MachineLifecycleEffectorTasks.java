@@ -713,8 +713,9 @@ public abstract class MachineLifecycleEffectorTasks {
         Task<List<?>> stoppingProcess = null;
         if (canStop(stopProcessMode, entity())) {
             stoppingProcess = Tasks.parallel(
-                        DynamicTasks.queue("stopping (process)", new StopProcessesAtMachineTask()),
-                        DynamicTasks.queue("stopping (feeds)", new StopFeedsAtMachineTask()));
+                    Tasks.create("stopping (process)", new StopProcessesAtMachineTask()),
+                    Tasks.create("stopping (feeds)", new StopFeedsAtMachineTask()));
+            DynamicTasks.queue(stoppingProcess);
         }
 
         Task<StopMachineDetails<Integer>> stoppingMachine = null;
