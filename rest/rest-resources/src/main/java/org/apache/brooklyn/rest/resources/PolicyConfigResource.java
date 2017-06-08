@@ -82,7 +82,7 @@ public class PolicyConfigResource extends AbstractBrooklynRestResource implement
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    public Response set(String application, String entityToken, String policyToken, String configKeyName, Object value) {
+    public Response set(String application, String entityToken, String policyToken, String configKeyName, String value) {
         Entity entity = brooklyn().getEntity(application, entityToken);
         if (!Entitlements.isEntitled(mgmt().getEntitlementManager(), Entitlements.MODIFY_ENTITY, entity)) {
             throw WebResourceUtils.forbidden("User '%s' is not authorized to modify entity '%s'",

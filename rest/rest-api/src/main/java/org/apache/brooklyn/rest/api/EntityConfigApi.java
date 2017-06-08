@@ -121,10 +121,11 @@ public interface EntityConfigApi {
             @ApiParam(value = "Apply the config to all pre-existing descendants", required = false)
             @QueryParam("recurse") @DefaultValue("false") final Boolean recurse,
             @ApiParam(value = "Map of config key names to values", required = true)
-            Map newValues);
+            Map<String, Object> newValues);
 
     @POST
     @Path("/{config}")
+    @Consumes(MediaType.TEXT_PLAIN)
     @ApiOperation(value = "Manually set a config value")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "Could not find application, entity or config key")
@@ -139,7 +140,7 @@ public interface EntityConfigApi {
             @ApiParam(value = "Apply the config to all pre-existing descendants", required = false)
             @QueryParam("recurse") @DefaultValue("false") final Boolean recurse,
             @ApiParam(value = "Value to set")
-            Object newValue);
+            String newValue);
 
     // deletion of config is not supported; you can set it null
 }

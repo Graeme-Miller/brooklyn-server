@@ -117,10 +117,11 @@ public interface SensorApi {
             @ApiParam(value = "Entity ID or name", required = true)
             @PathParam("entity") final String entityToken,
             @ApiParam(value = "Map of sensor names to values", required = true)
-            Map newValues);
+            Map<String, Object> newValues);
 
     @POST
     @Path("/{sensor}")
+    @Consumes(MediaType.TEXT_PLAIN)
     @ApiOperation(value = "Manually set a sensor value")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "Could not find application, entity or sensor")
@@ -133,7 +134,7 @@ public interface SensorApi {
             @ApiParam(value = "Sensor name", required = true)
             @PathParam("sensor") String sensorName,
             @ApiParam(value = "Value to set")
-            Object newValue);
+            String newValue);
 
     @DELETE
     @Path("/{sensor}")

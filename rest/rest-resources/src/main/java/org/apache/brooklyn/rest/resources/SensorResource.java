@@ -133,19 +133,20 @@ public class SensorResource extends AbstractBrooklynRestResource implements Sens
     
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
-    public void setFromMap(String application, String entityToken, Map newValues) {
+    public void setFromMap(String application, String entityToken, Map<String, Object> newValues) {
         final Entity entity = brooklyn().getEntity(application, entityToken);
         if (!Entitlements.isEntitled(mgmt().getEntitlementManager(), Entitlements.MODIFY_ENTITY, entity)) {
             throw WebResourceUtils.forbidden("User '%s' is not authorized to modify entity '%s'",
                 Entitlements.getEntitlementContext().user(), entity);
         }
 
-        if (log.isDebugEnabled())
-            log.debug("REST user "+Entitlements.getEntitlementContext()+" setting sensors "+newValues);
-        for (Object entry: newValues.entrySet()) {
-            String sensorName = Strings.toString(((Map.Entry)entry).getKey());
-            Object newValue = ((Map.Entry)entry).getValue();
-            
+
+        log.debug("REST user "+Entitlements.getEntitlementContext()+" setting sensors "+newValues);
+
+        for (Map.Entry<String, Object> entry : newValues.entrySet()) {
+            String sensorName = entry.getKey();
+            Object newValue = entry.getValue();
+
             AttributeSensor sensor = findSensor(entity, sensorName);
             entity.sensors().set(sensor, newValue);
         }
@@ -153,7 +154,7 @@ public class SensorResource extends AbstractBrooklynRestResource implements Sens
     
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
-    public void set(String application, String entityToken, String sensorName, Object newValue) {
+    public void set(String application, String entityToken, String sensorName, String newValue) {
         final Entity entity = brooklyn().getEntity(application, entityToken);
         if (!Entitlements.isEntitled(mgmt().getEntitlementManager(), Entitlements.MODIFY_ENTITY, entity)) {
             throw WebResourceUtils.forbidden("User '%s' is not authorized to modify entity '%s'",

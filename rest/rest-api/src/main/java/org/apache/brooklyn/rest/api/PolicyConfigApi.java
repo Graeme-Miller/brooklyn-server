@@ -83,7 +83,7 @@ public interface PolicyConfigApi {
 
     @POST
     @Path("/{config}")
-    @Consumes(value = {"*/*"})
+    @Consumes(MediaType.TEXT_PLAIN)
     @ApiOperation(value = "Sets the given config on this policy")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "Could not find application, entity, policy or config key")
@@ -98,5 +98,5 @@ public interface PolicyConfigApi {
             @ApiParam(value = "Config key ID", required = true)
             @PathParam("config") String configKeyName,
             @ApiParam(name = "value", value = "New value for the configuration", required = true)
-            Object value);
+            String value);
 }
