@@ -18,20 +18,14 @@
  */
 package org.apache.brooklyn.rest.security.jaas;
 
-import org.apache.brooklyn.api.mgmt.ManagementContext;
-import org.apache.brooklyn.config.StringConfigMap;
-import org.apache.brooklyn.rest.BrooklynWebConfig;
-import org.apache.brooklyn.rest.security.provider.DelegatingSecurityProvider;
-import org.apache.brooklyn.rest.security.provider.SecurityProvider;
-import org.apache.brooklyn.util.exceptions.Exceptions;
-import org.apache.brooklyn.util.text.Strings;
-import org.eclipse.jetty.server.HttpChannel;
-import org.eclipse.jetty.server.HttpConnection;
-import org.eclipse.jetty.server.Request;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.Callback;
@@ -43,31 +37,36 @@ import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 import javax.servlet.http.HttpSession;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.apache.brooklyn.api.mgmt.ManagementContext;
+import org.apache.brooklyn.config.StringConfigMap;
+import org.apache.brooklyn.rest.BrooklynWebConfig;
+import org.apache.brooklyn.rest.security.provider.DelegatingSecurityProvider;
+import org.apache.brooklyn.rest.security.provider.SecurityProvider;
+import org.apache.brooklyn.util.exceptions.Exceptions;
+import org.apache.brooklyn.util.text.Strings;
+import org.eclipse.jetty.server.HttpChannel;
+import org.eclipse.jetty.server.Request;
+import org.osgi.framework.Bundle;
+import org.osgi.framework.BundleContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // http://docs.oracle.com/javase/7/docs/technotes/guides/security/jaas/JAASLMDevGuide.html
 
 /**
  * <p>
- * JAAS module delegating authentication to the {@link SecurityProvider} implementation
+ * JAAS module delegating authentication to the {@link SecurityProvider} implementation 
  * configured in {@literal brooklyn.properties}, key {@literal brooklyn.webconsole.security.provider}.
- * <p>
+ * 
  * <p>
  * If used in an OSGi environment only implementations visible from {@literal brooklyn-rest-server} are usable by default.
  * To use a custom security provider add the following configuration to the its bundle in {@literal src/main/resources/OSGI-INF/bundle/security-provider.xml}:
- * <p>
+ * 
  * <pre>
  * {@code
- * <?xml version="1.0" encoding="UTF-8"?>
- * <blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+ *<?xml version="1.0" encoding="UTF-8"?>
+ *<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
  *           xmlns:jaas="http://karaf.apache.org/xmlns/jaas/v1.1.0"
  *           xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.0.0">
  *
@@ -79,8 +78,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *        </jaas:module>
  *    </jaas:config>
  *
- * </blueprint>
- * }
+ *</blueprint>
+ *}
  * </pre>
  */
 // Needs an explicit "org.apache.karaf.jaas.config" Import-Package in the manifest!
@@ -97,41 +96,34 @@ public class BrooklynLoginModule implements LoginModule {
 
     private static class BasicPrincipal implements Principal {
         private String name;
-
         public BasicPrincipal(String name) {
             this.name = checkNotNull(name, "name");
         }
-
         @Override
         public String getName() {
             return name;
         }
-
         @Override
         public int hashCode() {
             return name.hashCode();
         }
-
         @Override
         public boolean equals(Object obj) {
             if (obj instanceof BasicPrincipal) {
-                return name.equals(((BasicPrincipal) obj).name);
+                return name.equals(((BasicPrincipal)obj).name);
             }
             return false;
         }
-
         @Override
         public String toString() {
-            return getClass().getSimpleName() + "[" + name + "]";
+            return getClass().getSimpleName() + "[" +name + "]";
         }
     }
-
     public static class UserPrincipal extends BasicPrincipal {
         public UserPrincipal(String name) {
             super(name);
         }
     }
-
     public static class RolePrincipal extends BasicPrincipal {
         public RolePrincipal(String name) {
             super(name);
@@ -140,9 +132,7 @@ public class BrooklynLoginModule implements LoginModule {
 
     public static final String PROPERTY_BUNDLE_SYMBOLIC_NAME = BrooklynWebConfig.SECURITY_PROVIDER_CLASSNAME.getName() + ".symbolicName";
     public static final String PROPERTY_BUNDLE_VERSION = BrooklynWebConfig.SECURITY_PROVIDER_CLASSNAME.getName() + ".version";
-    /**
-     * SecurityProvider doesn't know about roles, just attach one by default. Use the one specified here or DEFAULT_ROLE
-     */
+    /** SecurityProvider doesn't know about roles, just attach one by default. Use the one specified here or DEFAULT_ROLE */
     public static final String PROPERTY_ROLE = BrooklynWebConfig.SECURITY_PROVIDER_CLASSNAME.getName() + ".role";
     public static final String DEFAULT_ROLE = "webconsole";
 
@@ -205,7 +195,7 @@ public class BrooklynLoginModule implements LoginModule {
                     if (bundles.isEmpty()) {
                         throw new IllegalStateException("No bundle " + symbolicName + ":" + version + " found");
                     } else if (bundles.size() > 1) {
-                        log.warn("Found multiple bundles matching symbolicName " + symbolicName + " and version " + version +
+                        log.warn("Found multiple bundles matching symbolicName " + symbolicName + " and version " + version + 
                                 " while trying to load security provider " + className + ". Will use first one that loads the class successfully.");
                     }
                     provider = tryLoadClass(className, bundles);
@@ -357,10 +347,12 @@ public class BrooklynLoginModule implements LoginModule {
     }
 
     private Request getJettyRequest() {
-        return Optional.ofNullable(HttpConnection.getCurrentConnection())
-                .map(HttpConnection::getHttpChannel)
-                .map(HttpChannel::getRequest)
-                .orElse(null);
+        HttpChannel<?> channel = HttpChannel.getCurrentHttpChannel();
+        if (channel != null) {
+             return channel.getRequest();
+        } else {
+            return null;
+        }
     }
 
 }
