@@ -36,14 +36,13 @@ import org.apache.brooklyn.api.mgmt.Task;
 import org.apache.brooklyn.api.mgmt.TaskAdaptable;
 import org.apache.brooklyn.api.mgmt.TaskFactory;
 import org.apache.brooklyn.api.mgmt.TaskQueueingContext;
-import org.apache.brooklyn.config.ConfigKey;
-import org.apache.brooklyn.util.core.config.ConfigBag;
 import org.apache.brooklyn.util.exceptions.Exceptions;
 import org.apache.brooklyn.util.exceptions.ReferenceWithError;
 import org.apache.brooklyn.util.repeat.Repeater;
 import org.apache.brooklyn.util.time.CountdownTimer;
 import org.apache.brooklyn.util.time.Duration;
 import org.apache.brooklyn.util.time.Time;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,11 +135,6 @@ public class Tasks {
 
     public static ValueResolver.ResolverBuilderPretype resolving(Object v) {
         return new ValueResolver.ResolverBuilderPretype(v);
-    }
-    
-    @SuppressWarnings("unchecked")
-    public static <T> ValueResolver<T> resolving(ConfigBag config, ConfigKey<T> key) {
-        return new ValueResolver.ResolverBuilderPretype(config.getStringKey(key.getName())).as((Class<T>)key.getType());
     }
 
     /** @see #resolveValue(Object, Class, ExecutionContext, String) */

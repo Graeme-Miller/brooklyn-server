@@ -36,7 +36,6 @@ import javax.annotation.Nullable;
 
 import org.apache.brooklyn.api.catalog.CatalogItem;
 import org.apache.brooklyn.api.mgmt.ManagementContext;
-import org.apache.brooklyn.core.catalog.internal.BasicBrooklynCatalog;
 import org.apache.brooklyn.core.mgmt.classloading.OsgiBrooklynClassLoadingContext;
 import org.apache.brooklyn.core.mgmt.ha.OsgiManager;
 import org.apache.brooklyn.core.mgmt.internal.ManagementContextInternal;
@@ -128,7 +127,7 @@ public class BrooklynVersion implements BrooklynVersionService {
         if (Strings.isNonBlank(v)) return v;
         v = getVersionFromOsgiManifest();
         if (Strings.isNonBlank(v)) return v;
-        return BasicBrooklynCatalog.NO_VERSION;
+        return "0.0.0-SNAPSHOT";
     }
 
     @Override

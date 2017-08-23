@@ -73,8 +73,6 @@ public class AbstractYamlRebindTest extends RebindTestFixture<StartableApplicati
         };
         launcher.launch();
         platform = launcher.getCampPlatform();
-        
-        forceUpdate = false;
     }
 
     @Override

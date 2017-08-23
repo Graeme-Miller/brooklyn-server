@@ -25,11 +25,12 @@ import java.util.Map;
 
 import javax.ws.rs.core.UriBuilder;
 
+import org.apache.brooklyn.api.catalog.CatalogItem;
 import org.apache.brooklyn.api.location.Location;
 import org.apache.brooklyn.api.location.LocationDefinition;
 import org.apache.brooklyn.api.location.LocationSpec;
 import org.apache.brooklyn.api.mgmt.ManagementContext;
-import org.apache.brooklyn.api.typereg.RegisteredType;
+import org.apache.brooklyn.core.catalog.internal.CatalogUtils;
 import org.apache.brooklyn.core.config.Sanitizer;
 import org.apache.brooklyn.core.location.BasicLocationDefinition;
 import org.apache.brooklyn.core.location.CatalogLocationResolver;
@@ -61,6 +62,7 @@ public class LocationTransformer {
         return newInstance(null, id, locationSpec, LocationDetailLevel.LOCAL_EXCLUDING_SECRET, ub);
     }
     
+    @SuppressWarnings("unchecked")
     private static LocationSummary newInstance(ManagementContext mgmt, 
             LocationSpec<? extends Location> spec, ConfigBag explicitConfig, 
             String optionalExplicitId, String name, String specString, 
@@ -89,7 +91,10 @@ public class LocationTransformer {
         
         CatalogLocationSummary catalogSummary = null;
         if (CatalogLocationResolver.isLegacyWrappedReference(specString)) {
-            RegisteredType ci = mgmt.getTypeRegistry().get(CatalogLocationResolver.unwrapLegacyWrappedReference(specString));
+//            RegisteredType type = mgmt.getTypeRegistry().get(CatalogLocationResolver.unwrapLegacyWrappedReference(specString));
+            // TODO REST items should switch to using the RegisteredType
+            @SuppressWarnings({ "rawtypes", "deprecation" })
+            CatalogItem ci = CatalogUtils.getCatalogItemOptionalVersion(mgmt, CatalogLocationResolver.unwrapLegacyWrappedReference(specString));
             if (ci!=null) {
                 BrooklynRestResourceUtils br = new BrooklynRestResourceUtils(mgmt);
                 catalogSummary = CatalogTransformer.catalogLocationSummary(br, ci, ub);

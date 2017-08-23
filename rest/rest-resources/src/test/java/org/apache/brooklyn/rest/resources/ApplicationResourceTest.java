@@ -35,11 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -81,7 +77,7 @@ import org.apache.brooklyn.util.http.HttpAsserts;
 import org.apache.brooklyn.util.stream.Streams;
 import org.apache.brooklyn.util.text.StringPredicates;
 import org.apache.brooklyn.util.text.Strings;
-import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.brooklyn.util.time.Duration;
 import org.apache.http.HttpHeaders;
 import org.apache.http.entity.ContentType;
 import org.slf4j.Logger;
@@ -98,6 +94,13 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
+
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MultivaluedHashMap;
+
+import org.apache.cxf.jaxrs.client.WebClient;
 
 @Test(singleThreaded = true,
         // by using a different suite name we disallow interleaving other tests between the methods of this test class, which wrecks the test fixtures
@@ -613,7 +616,11 @@ public class ApplicationResourceTest extends BrooklynRestResourceTest {
         String itemVersion = "1.0";
         String serviceType = "org.apache.brooklyn.entity.stock.BasicApplication";
         
-        CatalogItemSummary itemSummary = testTemplateItem(itemSymbolicName, itemVersion, serviceType);
+        // Deploy the catalog item
+        addTestCatalogItem(itemSymbolicName, "template", itemVersion, serviceType);
+        List<CatalogEntitySummary> itemSummaries = client().path("/catalog/applications")
+                .query("fragment", itemSymbolicName).query("allVersions", "true").get(new GenericType<List<CatalogEntitySummary>>() {});
+        CatalogItemSummary itemSummary = Iterables.getOnlyElement(itemSummaries);
         String itemVersionedId = String.format("%s:%s", itemSummary.getSymbolicName(), itemSummary.getVersion());
         assertEquals(itemSummary.getId(), itemVersionedId);
 
@@ -661,98 +668,6 @@ public class ApplicationResourceTest extends BrooklynRestResourceTest {
         }
     }
 
-    protected CatalogEntitySummary testTemplateItem(String itemSymbolicName, String itemVersion, String serviceType) {
-        // Deploy the catalog item
-        addTestCatalogItem(itemSymbolicName, "template", itemVersion, serviceType);
-        log.info("Types after adding template: "+manager.getTypeRegistry().getAll());
-        List<CatalogEntitySummary> itemSummaries = client().path("/catalog/applications")
-                .query("fragment", itemSymbolicName).query("allVersions", "true").get(new GenericType<List<CatalogEntitySummary>>() {});
-        return Iterables.getOnlyElement(itemSummaries);
-    }
-
-    @Test(dependsOnMethods = { "testDeployApplication", "testLocatedLocation" })
-    public void testDeploymentUsesAppId() throws Exception {
-        String yaml = "{ name: simple-app-yaml, services: [ { type: "+BasicApplication.class.getCanonicalName()+" } ] }";
-        String appId = "myidtestdeploymentuidisset";
-
-        Response response = deployApp(yaml, appId);
-        assertResponseStatus(response, 201);
-
-        BasicApplication app = (BasicApplication) getManagementContext().getEntityManager().getEntity(appId);
-        assertNotNull(app);
-        assertEquals(app.getId(), appId);
-    }
-
-    @Test(dependsOnMethods = { "testDeployApplication", "testLocatedLocation" })
-    public void testDeploymentFailsOnInvalidAppId() throws Exception {
-        assertAppIdValid("abcdefghijkl");
-        assertAppIdValid("1234567890");
-        assertAppIdValid(com.google.common.base.Strings.repeat("a", 63));
-        assertAppIdInvalid("tooshort"); // must be at least 10 chars
-        assertAppIdInvalid("a-bcdefghijkl"); // must be letters/digits only
-        assertAppIdInvalid("Abcdefghijkl"); // must be lower-case only
-        assertAppIdInvalid(com.google.common.base.Strings.repeat("a", 64)); // too long
-    }
-
-    private void assertAppIdInvalid(String appId) {
-        String yaml = "{ name: simple-app-yaml, services: [ { type: "+BasicApplication.class.getCanonicalName()+" } ] }";
-        Response response = deployApp(yaml, appId);
-        assertResponseStatus(response, 400, StringPredicates.containsLiteral("Invalid entity id '"+appId+"'"));
-        assertNull(getManagementContext().getEntityManager().getEntity(appId));
-    }
-    
-    private void assertAppIdValid(String appId) {
-        String yaml = "{ name: simple-app-yaml, services: [ { type: "+BasicApplication.class.getCanonicalName()+" } ] }";
-        Response response = deployApp(yaml, appId);
-        assertResponseStatus(response, 201);
-        assertNotNull(getManagementContext().getEntityManager().getEntity(appId));
-    }
-    
-    @Test(dependsOnMethods = { "testDeployApplication", "testLocatedLocation" })
-    public void testDeploymentFailsOnDuplicateAppId() throws Exception {
-        // First app
-        String appId = "myuidtestdeploymentuidfailsonduplicate";
-        String yaml = "{ name: my-name-1, services: [ { type: "+BasicApplication.class.getCanonicalName()+" } ] }";
-        Response response = deployApp(yaml, appId);
-        assertResponseStatus(response, 201);
-
-        BasicApplication app = (BasicApplication) getManagementContext().getEntityManager().getEntity(appId);
-        assertNotNull(app);
-
-        // Second app should get a conflict response (409)
-        String yaml2 = "{ name: my-name-2, services: [ { type: "+BasicApplication.class.getCanonicalName()+" } ] }";
-        Response response2 = deployApp(yaml2, appId);
-        assertResponseStatus(response2, 409, StringPredicates.containsAllLiterals(
-                IdAlreadyExistsException.class.getSimpleName(), "already known under that id '"+appId+"'"));
-
-        Optional<Application> app2 = Iterables.tryFind(getManagementContext().getApplications(), EntityPredicates.displayNameEqualTo("my-name-2"));
-        assertFalse(app2.isPresent(), "app2="+app2);
-        
-        // Third app with different app id should work
-        String appId3 = "myuiddifferent";
-        String yaml3 = "{ name: my-name-3, services: [ { type: "+BasicApplication.class.getCanonicalName()+" } ] }";
-        Response response3 = deployApp(yaml3, appId3);
-        assertResponseStatus(response3, 201);
-        
-        BasicApplication app3 = (BasicApplication) getManagementContext().getEntityManager().getEntity(appId3);
-        assertNotNull(app3);
-        
-        // Delete app1; then deploying app2 should succeed
-        Entities.unmanage(app);
-        
-        Response response2b = deployApp(yaml2, appId);
-        assertResponseStatus(response2b, 201);
-
-        BasicApplication app2b = (BasicApplication) getManagementContext().getEntityManager().getEntity(appId);
-        assertNotNull(app2b);
-        assertEquals(app2b.getDisplayName(), "my-name-2");
-    }
-
-    private Response deployApp(String yaml, String appId) {
-        return client().path("/applications/"+appId)
-                .put(Entity.entity(yaml, "application/x-yaml"));
-    }
-    
     private void deprecateCatalogItem(String symbolicName, String version, boolean deprecated) {
         String id = String.format("%s:%s", symbolicName, version);
         Response response = client().path(String.format("/catalog/entities/%s/deprecated", id))
@@ -792,7 +707,7 @@ public class ApplicationResourceTest extends BrooklynRestResourceTest {
     private void assertResponseStatus(Response response, int expectedStatus, Predicate<? super String> expectedBody) {
         assertResponseStatus(response, Range.singleton(expectedStatus), expectedBody);
     }
-    
+
     private void assertResponseStatus(Response response, int expectedStatus) {
         assertResponseStatus(response, Range.singleton(expectedStatus), Predicates.alwaysTrue());
     }

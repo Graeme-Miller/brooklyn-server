@@ -21,6 +21,7 @@ package org.apache.brooklyn.camp.brooklyn.catalog;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.typereg.BrooklynTypeRegistry;
@@ -32,7 +33,6 @@ import org.apache.brooklyn.core.typereg.RegisteredTypePredicates;
 import org.apache.brooklyn.core.typereg.RegisteredTypes;
 import org.apache.brooklyn.entity.stock.BasicApplication;
 import org.apache.brooklyn.entity.stock.BasicEntity;
-import org.apache.brooklyn.test.Asserts;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,7 +50,7 @@ public class CatalogYamlVersioningTest extends AbstractYamlTest {
         super.setUp();
         types = mgmt().getTypeRegistry();
     }
-    
+
     @Test
     public void testAddItem() {
         String symbolicName = "sampleId";
@@ -67,43 +67,19 @@ public class CatalogYamlVersioningTest extends AbstractYamlTest {
     }
 
     @Test
-    public void testAddSameVersionWorksIfSame() {
-        String symbolicName = "sampleId";
-        String version = "0.1.0";
-        addCatalogEntity(symbolicName, version);
-        // works if no different
-        addCatalogEntity(symbolicName, version);
-    }
-    
-    @Test
     public void testAddSameVersionFailsWhenIconIsDifferent() {
         String symbolicName = "sampleId";
         String version = "0.1.0";
         addCatalogEntity(symbolicName, version);
+        addCatalogEntity(symbolicName, version);
         try {
             addCatalogEntity(symbolicName, version, BasicEntity.class.getName(), "classpath:/another/icon.png");
-            Asserts.shouldHaveFailedPreviously("Expected to fail");
-        } catch (Exception e) {
-            checkAddSameVersionFailsWhenIconIsDifferent(e);
+            fail("Expected to fail");
+        } catch (IllegalStateException e) {
+            assertEquals(e.getMessage(), "Updating existing catalog entries is forbidden: " + symbolicName + ":" + version + ". Use forceUpdate argument to override.");
         }
     }
     
-    protected void checkAddSameVersionFailsWhenIconIsDifferent(Exception e) {
-        assertExpectedFailureSaysDifferentIsBad(e);
-        assertExpectedFailureIncludesSampleId(e);
-    }
-
-    protected void assertExpectedFailureIncludesSampleId(Exception e) {
-        String symbolicName = "sampleId";
-        String version = "0.1.0";
-        Asserts.expectedFailureContainsIgnoreCase(e, 
-            symbolicName + ":" + version);
-    }
-    protected void assertExpectedFailureSaysDifferentIsBad(Exception e) {
-        Asserts.expectedFailureContainsIgnoreCase(e, 
-            "cannot add", "different");
-    }
-
     @Test
     public void testAddSameSnapshotVersionSucceedsWhenIconIsDifferent() {
         String symbolicName = "sampleId";
@@ -114,15 +90,6 @@ public class CatalogYamlVersioningTest extends AbstractYamlTest {
         assertSingleCatalogItem(symbolicName, version);
         RegisteredType item = types.get(symbolicName, version);
         assertTrue(item.getIconUrl().equals(icon), "Unexpected iconUrl: " + item.getIconUrl());
-    }
-    
-    @Test
-    public void testAddSameVersionWithoutBundle() {
-        String symbolicName = "sampleId";
-        String version = "0.1.0";
-        addCatalogEntityWithoutBundle(symbolicName, version);
-        // allowed when not OSGi
-        addCatalogEntityWithoutBundle(symbolicName, version);
     }
     
     @Test
@@ -312,20 +279,6 @@ public class CatalogYamlVersioningTest extends AbstractYamlTest {
             "  icon_url: "+iconUrl,
             "  item:",
             "    type: " + type);
-    }
-
-    protected void addCatalogEntityWithoutBundle(String symbolicName, String version) {
-        addCatalogItems(
-            "brooklyn.catalog:",
-            "  items:",
-            "  - id: " + symbolicName,
-            (version != null ? "    version: " + version : ""),
-            "    itemType: entity",
-            "    name: My Catalog App",
-            "    description: My description",
-            "    icon_url: "+"classpath://path/to/myicon.jpg",
-            "    item:",
-            "      type: " + BasicEntity.class.getName());
     }
 
 }

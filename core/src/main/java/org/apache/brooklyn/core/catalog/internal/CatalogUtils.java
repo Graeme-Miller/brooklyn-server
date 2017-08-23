@@ -20,7 +20,6 @@ package org.apache.brooklyn.core.catalog.internal;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
@@ -32,7 +31,6 @@ import org.apache.brooklyn.api.mgmt.ManagementContext;
 import org.apache.brooklyn.api.mgmt.classloading.BrooklynClassLoadingContext;
 import org.apache.brooklyn.api.objs.BrooklynObject;
 import org.apache.brooklyn.api.typereg.BrooklynTypeRegistry;
-import org.apache.brooklyn.api.typereg.ManagedBundle;
 import org.apache.brooklyn.api.typereg.OsgiBundleWithUrl;
 import org.apache.brooklyn.api.typereg.RegisteredType;
 import org.apache.brooklyn.core.BrooklynLogging;
@@ -52,9 +50,7 @@ import org.apache.brooklyn.core.typereg.RegisteredTypeNaming;
 import org.apache.brooklyn.core.typereg.RegisteredTypePredicates;
 import org.apache.brooklyn.core.typereg.RegisteredTypes;
 import org.apache.brooklyn.util.collections.MutableList;
-import org.apache.brooklyn.util.collections.MutableSet;
 import org.apache.brooklyn.util.guava.Maybe;
-import org.apache.brooklyn.util.osgi.VersionedName;
 import org.apache.brooklyn.util.text.Strings;
 import org.apache.brooklyn.util.time.Time;
 import org.osgi.framework.Bundle;
@@ -101,11 +97,11 @@ public class CatalogUtils {
             log.warn("Cannot load "+catId+" to get classloader for "+entity+"; will try with standard loader, but might fail subsequently");
             return JavaBrooklynClassLoadingContext.create(mgmt);
         }
-        return newClassLoadingContext(mgmt, cat.get(), JavaBrooklynClassLoadingContext.create(mgmt));
+        return newClassLoadingContext(mgmt, cat.get());
     }
 
     public static BrooklynClassLoadingContext newClassLoadingContext(@Nullable ManagementContext mgmt, String catalogItemId, Collection<? extends OsgiBundleWithUrl> libraries) {
-        return newClassLoadingContext(mgmt, catalogItemId, libraries, JavaBrooklynClassLoadingContext.create(mgmt));
+        return newClassLoadingContext(mgmt, catalogItemId, libraries, null);
     }
     
     @Deprecated /** @deprecated since 0.9.0; becoming private because we should now always have a registered type callers can pass instead of the catalog item id */
@@ -150,12 +146,12 @@ public class CatalogUtils {
     }
 
     public static BrooklynClassLoadingContext newClassLoadingContextForCatalogItems(
-        ManagementContext managementContext, String primaryItemId, List<String> searchPath) {
+        ManagementContext managementContext, String catalogItemId, List<String> searchPath) {
 
         BrooklynClassLoadingContextSequential seqLoader = new BrooklynClassLoadingContextSequential(managementContext);
-        addSearchItem(managementContext, seqLoader, primaryItemId, false /* primary ID may be temporary */);
+        addCatalogItemContext(managementContext, seqLoader, catalogItemId);
         for (String searchId : searchPath) {
-            addSearchItem(managementContext, seqLoader, searchId, true);
+            addCatalogItemContext(managementContext, seqLoader, searchId);
         }
         return seqLoader;
     }
@@ -179,7 +175,7 @@ public class CatalogUtils {
             Stopwatch timer = Stopwatch.createStarted();
             List<OsgiBundleInstallationResult> results = MutableList.of();
             for (CatalogBundle bundleUrl : libraries) {
-                OsgiBundleInstallationResult result = osgi.get().installDeferredStart(BasicManagedBundle.of(bundleUrl), null, true).get();
+                OsgiBundleInstallationResult result = osgi.get().installDeferredStart(BasicManagedBundle.of(bundleUrl), null).get();
                 if (log.isDebugEnabled()) {
                     logDebugOrTraceIfRebinding(log, "Installation of library "+bundleUrl+": "+result);
                 }
@@ -345,62 +341,29 @@ public class CatalogUtils {
     @Deprecated
     public static void setDeprecated(ManagementContext mgmt, String symbolicName, String version, boolean newValue) {
         CatalogItem<?, ?> item = mgmt.getCatalog().getCatalogItem(symbolicName, version);
-        if (item!=null) {
-            item.setDeprecated(newValue);
-            mgmt.getCatalog().persist(item);
-        } else {
-            RegisteredType type = mgmt.getTypeRegistry().get(symbolicName, version);
-            if (type!=null) {
-                RegisteredTypes.setDeprecated(type, newValue);
-            } else {
-                throw new NoSuchElementException(symbolicName+":"+version);
-            }
-        }
+        Preconditions.checkNotNull(item, "No such item: "+symbolicName+" v "+version);
+        item.setDeprecated(newValue);
+        mgmt.getCatalog().persist(item);
     }
 
     /** @deprecated since it was introduced in 0.9.0; TBD where this should live */
     @Deprecated
     public static void setDisabled(ManagementContext mgmt, String symbolicName, String version, boolean newValue) {
         CatalogItem<?, ?> item = mgmt.getCatalog().getCatalogItem(symbolicName, version);
-        if (item!=null) {
-            item.setDisabled(newValue);
-            mgmt.getCatalog().persist(item);
-        } else {
-            RegisteredType type = mgmt.getTypeRegistry().get(symbolicName, version);
-            if (type!=null) {
-                RegisteredTypes.setDisabled(type, newValue);
-            } else {
-                throw new NoSuchElementException(symbolicName+":"+version);
-            }
-        }
+        Preconditions.checkNotNull(item, "No such item: "+symbolicName+" v "+version);
+        item.setDisabled(newValue);
+        mgmt.getCatalog().persist(item);
     }
 
-    private static void addSearchItem(ManagementContext managementContext, BrooklynClassLoadingContextSequential loader, String itemId, boolean warnIfNotFound) {
-        OsgiManager osgi = ((ManagementContextInternal)managementContext).getOsgiManager().orNull();
-        boolean didSomething = false;
-        if (osgi!=null) {
-            ManagedBundle bundle = osgi.getManagedBundle(VersionedName.fromString(itemId));
-            if (bundle!=null) {
-                loader.add( newClassLoadingContext(managementContext, itemId, MutableSet.of(bundle)) );
-                didSomething = true;
-                // but also load entities, if name is same as a bundle and libraries are set on entity
-            }
-        }
-        
-        RegisteredType item = managementContext.getTypeRegistry().get(itemId);
+    private static void addCatalogItemContext(ManagementContext managementContext, BrooklynClassLoadingContextSequential loader, String catalogItemId) {
+        RegisteredType item = managementContext.getTypeRegistry().get(catalogItemId);
+
         if (item != null) {
             BrooklynClassLoadingContext itemLoader = newClassLoadingContext(managementContext, item);
             loader.add(itemLoader);
-            didSomething = true;
-        }
-
-        if (!didSomething) {
-            if (warnIfNotFound) {
-                log.warn("Can't find catalog item " + itemId+" when searching; a search path may be incomplete and other errors may follow");
-            } else {
-                log.trace("Can't find catalog item " + itemId+" when searching; ignoring as this can be normal in setup/scans, "
-                    + "but it can also mean a search path may be incomplete and other errors may follow");
-            }
+        } else {
+            // TODO review what to do here
+            log.warn("Can't find catalog item " + catalogItemId);
         }
     }
 

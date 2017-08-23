@@ -91,11 +91,10 @@ public class RebindContextImpl implements RebindContext {
         catalogItems.put(id, catalogItem);
     }
 
-    /** install the bundles into brooklyn and osgi, but do not start nor validate;
-     * caller (rebind) will do that manually, doing each step across all bundles before proceeding 
-     * to prevent reference errors */
+    // we don't track register/unregister of bundles; it isn't needed as it happens so early
+    // but we do need to know which ones to start subsequently
     public OsgiBundleInstallationResult installBundle(ManagedBundle bundle, InputStream zipInput) {
-        return ((ManagementContextInternal)mgmt).getOsgiManager().get().installDeferredStart(bundle, zipInput, false).get();
+        return ((ManagementContextInternal)mgmt).getOsgiManager().get().installDeferredStart(bundle, zipInput).get();
     }
     public void startBundle(OsgiBundleInstallationResult br) throws BundleException {
         if (br.getDeferredStart()!=null) {

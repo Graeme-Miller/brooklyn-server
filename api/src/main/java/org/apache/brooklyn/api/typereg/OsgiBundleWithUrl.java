@@ -18,8 +18,6 @@
  */
 package org.apache.brooklyn.api.typereg;
 
-import org.apache.brooklyn.util.osgi.VersionedName;
-
 import com.google.common.annotations.Beta;
 
 @Beta
@@ -38,8 +36,5 @@ public interface OsgiBundleWithUrl {
     /** @return true if we have a name and version for this bundle;
      * false if not, e.g. if we only know the URL and we haven't loaded it yet */
     public boolean isNameResolved();
-    
-    /** @return the {@link VersionedName} for this bundle, or null if not available */
-    public VersionedName getVersionedName();
 
 }

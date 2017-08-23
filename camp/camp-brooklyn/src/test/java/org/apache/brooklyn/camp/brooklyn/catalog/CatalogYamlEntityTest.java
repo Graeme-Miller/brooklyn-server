@@ -31,7 +31,6 @@ import org.apache.brooklyn.api.typereg.BrooklynTypeRegistry;
 import org.apache.brooklyn.api.typereg.RegisteredType;
 import org.apache.brooklyn.camp.brooklyn.AbstractYamlTest;
 import org.apache.brooklyn.config.ConfigKey;
-import org.apache.brooklyn.core.catalog.internal.BasicBrooklynCatalog;
 import org.apache.brooklyn.core.catalog.internal.CatalogUtils;
 import org.apache.brooklyn.core.config.ConfigKeys;
 import org.apache.brooklyn.core.test.entity.TestEntity;
@@ -125,9 +124,8 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
             "  item:",
             "    type: "+ BasicEntity.class.getName());
         RegisteredType catalogItem = mgmt().getTypeRegistry().get(id, BrooklynCatalog.DEFAULT_VERSION);
-        assertEquals(catalogItem.getVersion(), BasicBrooklynCatalog.NO_VERSION);
-        mgmt().getCatalog().deleteCatalogItem(id, BasicBrooklynCatalog.NO_VERSION);
-        Assert.assertNull(mgmt().getTypeRegistry().get(id));
+        assertEquals(catalogItem.getVersion(), "0.0.0.SNAPSHOT");
+        mgmt().getCatalog().deleteCatalogItem(id, "0.0.0.SNAPSHOT");
     }
 
     // Legacy / backwards compatibility: should use id
@@ -338,16 +336,11 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
         addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION), TestEntity.class.getName());
     }
     
-    @Test
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testUpdatingItemFailsIfDifferent() {
         String symbolicName = "my.catalog.app.id.duplicate";
-        try {
-            addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION), TestEntity.class.getName());
-            addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION), BasicEntity.class.getName());
-            Asserts.shouldHaveFailedPreviously();
-        } catch (Exception e) {
-            Asserts.expectedFailureContains(e, "different", symbolicName, TEST_VERSION, "already present");
-        }
+        addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION), TestEntity.class.getName());
+        addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION), BasicEntity.class.getName());
     }
 
     @Test
@@ -380,7 +373,7 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
         try {
             addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION + "-update"), symbolicName);
             Asserts.shouldHaveFailedPreviously("Catalog addition expected to fail due to recursive reference to " + symbolicName);
-        } catch (Exception e) {
+        } catch (IllegalStateException e) {
             Asserts.expectedFailureContains(e, "recursive", symbolicName);
         }
     }
@@ -396,7 +389,7 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
         try {
             addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION + "-update"), versionedId);
             Asserts.shouldHaveFailedPreviously("Catalog addition expected to fail due to recursive reference to " + versionedId);
-        } catch (Exception e) {
+        } catch (IllegalStateException e) {
             Asserts.expectedFailureContains(e, "recursive", symbolicName, versionedId);
         }
     }
@@ -415,7 +408,7 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
         try {
             addCatalogEntity(IdAndVersion.of(callerSymbolicName, TEST_VERSION), calleeSymbolicName);
             Asserts.shouldHaveFailedPreviously();
-        } catch (Exception e) {
+        } catch (IllegalStateException e) {
             Asserts.expectedFailureContains(e, "recursive");
         }
     }
@@ -446,8 +439,8 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
                     "      brooklyn.children:",
                     "      - type: " + calleeSymbolicName);
             Asserts.shouldHaveFailedPreviously();
-        } catch (Exception e) {
-            Asserts.expectedFailureContains(e, "recursive", callerSymbolicName, calleeSymbolicName);
+        } catch (IllegalStateException e) {
+            Asserts.expectedFailureContains(e, "recursive");
         }
     }
 
@@ -552,7 +545,6 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
     
     @Test(groups = "Broken")
     // See https://issues.apache.org/jira/browse/BROOKLYN-343
-    // Fixed in OSGi subclass
     public void testSameCatalogReferences() {
         addCatalogItems(
             "brooklyn.catalog:",
@@ -700,11 +692,11 @@ public class CatalogYamlEntityTest extends AbstractYamlTest {
         }
     }
     
-    protected void addCatalogEntity(String symbolicName, String entityType) {
+    private void addCatalogEntity(String symbolicName, String entityType) {
         addCatalogEntity(IdAndVersion.of(symbolicName, TEST_VERSION), entityType);
     }
 
-    protected void addCatalogEntity(IdAndVersion idAndVersion, String serviceType) {
+    private void addCatalogEntity(IdAndVersion idAndVersion, String serviceType) {
         addCatalogItems(
                 "brooklyn.catalog:",
                 "  id: " + idAndVersion.id,

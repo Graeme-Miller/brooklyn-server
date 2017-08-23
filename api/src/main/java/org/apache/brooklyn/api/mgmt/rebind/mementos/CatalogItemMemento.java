@@ -30,8 +30,6 @@ public interface CatalogItemMemento extends Memento {
 
     String getSymbolicName();
 
-    String getContainingBundle();
-    
     String getIconUrl();
 
     String getVersion();

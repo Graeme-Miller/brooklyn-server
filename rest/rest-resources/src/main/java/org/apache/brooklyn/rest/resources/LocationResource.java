@@ -83,7 +83,7 @@ public class LocationResource extends AbstractBrooklynRestResource implements Lo
                 }
             }
         };
-        return FluentIterable.from(brooklyn().getLocationRegistry().getDefinedLocations(true).values())
+        return FluentIterable.from(brooklyn().getLocationRegistry().getDefinedLocations().values())
                 .transform(transformer)
                 .filter(LocationSummary.class)
                 .toSortedList(nameOrSpecComparator());

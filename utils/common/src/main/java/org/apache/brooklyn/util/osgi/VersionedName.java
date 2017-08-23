@@ -96,13 +96,6 @@ public class VersionedName {
     }
 
     @Nullable
-    public String getOsgiVersionString() {
-        Version ov = getOsgiVersion();
-        if (ov==null) return null;
-        return ov.toString();
-    }
-
-    @Nullable
     public String getVersionString() {
         return v;
     }
@@ -126,13 +119,8 @@ public class VersionedName {
         return Objects.equal(name, o.name) && Objects.equal(v, o.v);
     }
     
-    /** As {@link #equals(Object)} but accepting the argument as equal 
-     * if versions are identical under the {@link #getOsgiVersion()} conversion;
-     * also accepts strings as the other, converting as per {@link #fromString(String)} */
+    /** As {@link #equals(Object)} but accepting the argument as equal if versions are identical when injected to OSGi-valid versions */
     public boolean equalsOsgi(Object other) {
-        if (other instanceof String) {
-            other = VersionedName.fromString((String)other);
-        }
         if (!(other instanceof VersionedName)) {
             return false;
         }

@@ -32,7 +32,6 @@ import org.apache.brooklyn.api.sensor.Enricher;
 import org.apache.brooklyn.api.sensor.EnricherSpec;
 import org.apache.brooklyn.api.typereg.RegisteredType;
 import org.apache.brooklyn.core.mgmt.classloading.BrooklynClassLoadingContextSequential;
-import org.apache.brooklyn.core.mgmt.classloading.JavaBrooklynClassLoadingContext;
 import org.apache.brooklyn.core.objs.BasicSpecParameter;
 import org.apache.brooklyn.core.plan.PlanToSpecTransformer;
 import org.apache.brooklyn.core.typereg.UnsupportedTypePlanException;
@@ -78,6 +77,11 @@ public class JavaCatalogToSpecTransformer implements PlanToSpecTransformer {
         @SuppressWarnings("deprecation")
         String javaType = item.getJavaType();
         if (javaType != null) {
+            // TODO This log.warn previously said "Using old-style xml catalog items with java type attribute".
+            // However, nothing in this code is specific to catalog.xml. Perhaps that is the only way this code
+            // can be reached? We should investigate further when we have time - if we can confirm it was only
+            // used for catalog.xml, then this can be deleted.
+            log.warn("Deprecated functionality (since 0.9.0). Using old-style java type attribute for " + item);
             Class<?> type;
             try {
                 // java types were deprecated before we added osgi support so this isn't necessary,
@@ -86,7 +90,6 @@ public class JavaCatalogToSpecTransformer implements PlanToSpecTransformer {
                 final BrooklynClassLoadingContextSequential ctx = new BrooklynClassLoadingContextSequential(mgmt);
                 ctx.add(CatalogUtils.newClassLoadingContextForCatalogItems(mgmt, item.getCatalogItemId(),
                     item.getCatalogItemIdSearchPath()));
-                ctx.addSecondary(JavaBrooklynClassLoadingContext.create(mgmt));
                 type = ctx.loadClass(javaType);
             } catch (Exception e) {
                 Exceptions.propagateIfFatal(e);
@@ -114,7 +117,7 @@ public class JavaCatalogToSpecTransformer implements PlanToSpecTransformer {
             SpecT untypedSpc = (SpecT) spec;
             return untypedSpc;
         } else {
-            throw new UnsupportedTypePlanException(getClass().getName() + " parses only old-style catalog items containing only 'type: JavaClass' or javaType in DTO");
+            throw new UnsupportedTypePlanException(getClass().getName() + " parses only old-style catalog items containing javaType");
         }
     }
 

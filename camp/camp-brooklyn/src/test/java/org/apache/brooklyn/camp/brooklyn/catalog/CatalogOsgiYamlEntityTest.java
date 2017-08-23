@@ -236,30 +236,30 @@ public class CatalogOsgiYamlEntityTest extends AbstractYamlTest {
         try {
             addCatalogItems(
                 "brooklyn.catalog:",
-                "  id: my.catalog.app.id.non_existing.ref.1",
+                "  id: my.catalog.app.id.non_existing.ref",
                 "  version: " + TEST_VERSION,
                 "  itemType: entity",
                 "  libraries:",
                 "  - name: io.brooklyn.brooklyn-test-osgi-entities",
                 "  item:",
                 "    type: " + SIMPLE_ENTITY_TYPE);
-            Asserts.shouldHaveFailedPreviously();
-        } catch (Exception e) {
-            Asserts.expectedFailureContainsIgnoreCase(e, "both name and version are required");
+            fail();
+        } catch (NullPointerException e) {
+            Assert.assertEquals(e.getMessage(), "both name and version are required");
         }
         try {
             addCatalogItems(
                 "brooklyn.catalog:",
-                "  id: my.catalog.app.id.non_existing.ref.2",
+                "  id: my.catalog.app.id.non_existing.ref",
                 "  version: " + TEST_VERSION,
                 "  itemType: entity",
                 "  libraries:",
                 "  - version: " + OsgiStandaloneTest.BROOKLYN_TEST_OSGI_ENTITIES_VERSION,
                 "  item:",
                 "    type: " + SIMPLE_ENTITY_TYPE);
-            Asserts.shouldHaveFailedPreviously();
-        } catch (Exception e) {
-            Asserts.expectedFailureContainsIgnoreCase(e, "both name and version are required");
+            fail();
+        } catch (NullPointerException e) {
+            Assert.assertEquals(e.getMessage(), "both name and version are required");
         }
     }
 
@@ -323,18 +323,13 @@ public class CatalogOsgiYamlEntityTest extends AbstractYamlTest {
         addCatalogOSGiEntity(id);
     }
     
-    @Test
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testUpdatingItemFailsIfDifferent() {
         TestResourceUnavailableException.throwIfResourceUnavailable(getClass(), OsgiStandaloneTest.BROOKLYN_TEST_OSGI_ENTITIES_PATH);
 
         String id = "my.catalog.app.id.duplicate";
         addCatalogOSGiEntity(id);
-        try {
-            addCatalogOSGiEntity(id, SIMPLE_ENTITY_TYPE, true);
-            Asserts.shouldHaveFailedPreviously();
-        } catch (Exception e) {
-            Asserts.expectedFailureContainsIgnoreCase(e, id, "already installed", "cannot install a different bundle at a same non-snapshot version");
-        }
+        addCatalogOSGiEntity(id, SIMPLE_ENTITY_TYPE, true);
     }
 
     @Test

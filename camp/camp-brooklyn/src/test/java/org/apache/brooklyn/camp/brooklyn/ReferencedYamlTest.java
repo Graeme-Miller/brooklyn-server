@@ -169,7 +169,7 @@ public class ReferencedYamlTest extends AbstractYamlTest {
         checkChildEntitySpec(app, entityName);
     }
     
-    @Test(groups="Broken")  // long form discouraged but references should still work (but only in OSGi subclass)
+    @Test(groups="WIP") // references to earlier items only work with short form syntax
     public void testYamlReferencingEarlierItemLongFormEntity() throws Exception {
         addCatalogItems(
             "brooklyn.catalog:",
@@ -222,7 +222,7 @@ public class ReferencedYamlTest extends AbstractYamlTest {
         checkChildEntitySpec(app, entityName);
     }
 
-    @Test(groups="Broken")  // references to co-bundled items work even in nested url yaml (but only in OSGi subclass)
+    @Test(groups="WIP") //Not able to use caller provided catalog items when referencing entity specs (as opposed to catalog meta)
     public void testYamlReferencingEarlierItemInUrl() throws Exception {
         addCatalogItems(
             "brooklyn.catalog:",
@@ -231,7 +231,7 @@ public class ReferencedYamlTest extends AbstractYamlTest {
             "  - id: yaml.basic",
             "    version: " + TEST_VERSION,
             "    item:",
-            "      type: org.apache.brooklyn.entity.stock.BasicEntity",
+            "      type: org.apache.brooklyn.entity.stock.BasicApplication",
             "  - id: yaml.reference",
             "    version: " + TEST_VERSION,
             "    item: classpath://yaml-ref-catalog.yaml");  // this references yaml.basic above
@@ -245,7 +245,7 @@ public class ReferencedYamlTest extends AbstractYamlTest {
         checkChildEntitySpec(app, entityName);
     }
     
-    @Test(groups="Broken")  // reference to co-bundled items work also in nested url yaml as a type (but only in OSGi subclass)
+    @Test(groups="WIP") //Not able to use caller provided catalog items when referencing entity specs (as opposed to catalog meta)
     public void testYamlReferencingEarlierItemInUrlAsType() throws Exception {
         addCatalogItems(
             "brooklyn.catalog:",
@@ -254,7 +254,7 @@ public class ReferencedYamlTest extends AbstractYamlTest {
             "  - id: yaml.basic",
             "    version: " + TEST_VERSION,
             "    item:",
-            "      type: org.apache.brooklyn.entity.stock.BasicEntity",
+            "      type: org.apache.brooklyn.entity.stock.BasicApplication",
             "  - id: yaml.reference",
             "    version: " + TEST_VERSION,
             "    item:",

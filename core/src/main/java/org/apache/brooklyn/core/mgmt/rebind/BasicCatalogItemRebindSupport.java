@@ -43,7 +43,6 @@ public class BasicCatalogItemRebindSupport extends AbstractBrooklynObjectRebindS
         super.reconstruct(rebindContext, memento);
         FlagUtils.setFieldsFromFlags(MutableMap.builder()
                 .put("symbolicName", memento.getSymbolicName())
-                .put("containingBundle", memento.getContainingBundle())
                 .put("javaType", memento.getJavaType())
                 .put("displayName", memento.getDisplayName())
                 .put("description", memento.getDescription())

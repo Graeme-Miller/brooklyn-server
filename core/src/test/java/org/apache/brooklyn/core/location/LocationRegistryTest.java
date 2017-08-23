@@ -53,9 +53,9 @@ public class LocationRegistryTest {
         properties.put("brooklyn.location.named.foo", "byon:(hosts=\"root@192.168.1.{1,2,3,4}\")");
         properties.put("brooklyn.location.named.foo.privateKeyFile", "~/.ssh/foo.id_rsa");
         mgmt = LocalManagementContextForTests.newInstance(properties);
-        log.info("foo properties gave defined locations: "+mgmt.getLocationRegistry().getDefinedLocations(true));
+        log.info("foo properties gave defined locations: "+mgmt.getLocationRegistry().getDefinedLocations());
         locdef = mgmt.getLocationRegistry().getDefinedLocationByName("foo");
-        Assert.assertNotNull(locdef, "Expected 'foo' location; but had "+mgmt.getLocationRegistry().getDefinedLocations(true));
+        Assert.assertNotNull(locdef, "Expected 'foo' location; but had "+mgmt.getLocationRegistry().getDefinedLocations());
         Assert.assertEquals(locdef.getConfig().get("privateKeyFile"), "~/.ssh/foo.id_rsa");
     }
     
@@ -67,7 +67,7 @@ public class LocationRegistryTest {
         mgmt = LocalManagementContextForTests.newInstance(properties);
 
         locdef = mgmt.getLocationRegistry().getDefinedLocationByName("foo");
-        log.info("testResovlesBy has defined locations: "+mgmt.getLocationRegistry().getDefinedLocations(true));
+        log.info("testResovlesBy has defined locations: "+mgmt.getLocationRegistry().getDefinedLocations());
         
         LocationSpec<?> ls = mgmt.getLocationRegistry().getLocationSpec("named:foo").get();
         Location l = mgmt.getLocationManager().createLocation(ls);
@@ -127,7 +127,7 @@ public class LocationRegistryTest {
         BrooklynProperties properties = BrooklynProperties.Factory.newEmpty();
         properties.put("brooklyn.location.named.bar", "named:bar");
         mgmt = LocalManagementContextForTests.newInstance(properties);
-        log.info("bar properties gave defined locations: "+mgmt.getLocationRegistry().getDefinedLocations(true));
+        log.info("bar properties gave defined locations: "+mgmt.getLocationRegistry().getDefinedLocations());
         try {
             mgmt.getLocationRegistry().getLocationSpec("bar").get();
             Asserts.shouldHaveFailedPreviously("Circular reference gave a location");
@@ -137,7 +137,7 @@ public class LocationRegistryTest {
     }
 
     protected boolean findLocationMatching(String regex) {
-        for (LocationDefinition d: mgmt.getLocationRegistry().getDefinedLocations(true).values()) {
+        for (LocationDefinition d: mgmt.getLocationRegistry().getDefinedLocations().values()) {
             if (d.getName()!=null && d.getName().matches(regex)) return true;
         }
         return false;
@@ -159,7 +159,8 @@ public class LocationRegistryTest {
         properties.put(LocalhostLocationResolver.LOCALHOST_ENABLED.getName(), false);
         mgmt = LocalManagementContextForTests.newInstance(properties);
         
-        log.info("DEFINED LOCATIONS: "+mgmt.getLocationRegistry().getDefinedLocations(true));
+        log.info("RESOLVERS: "+mgmt.getLocationRegistry().getDefinedLocations());
+        log.info("DEFINED LOCATIONS: "+mgmt.getLocationRegistry().getDefinedLocations());
         Assert.assertFalse( findLocationMatching("localhost") );
     }
 

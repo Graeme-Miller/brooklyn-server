@@ -72,9 +72,6 @@ public class ReflectionScanner {
             final String optionalPrefix,
             final Predicate<String> filter,
             final ClassLoader ...classLoaders) {
-        if (Reflections.log==null) {
-            Reflections.log = log;
-        }
         reflections = new Reflections(new ConfigurationBuilder() {
             {
                 if (urlsToScan!=null)

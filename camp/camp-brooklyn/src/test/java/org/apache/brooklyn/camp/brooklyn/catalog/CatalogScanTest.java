@@ -40,7 +40,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Predicates;
@@ -49,7 +48,7 @@ import com.google.common.collect.Lists;
 
 public class CatalogScanTest {
 
-    // TODO tearDown could be merged with AbstractYamlTest
+    // TODO setUp/tearDown copied from AbstractYamlTest
     
     // Moved from brooklyn-core. When we deleted support for catalog.xml, the scanned catalog
     // was then only stored in camp format, which meant we needed the camp parser.
@@ -61,12 +60,6 @@ public class CatalogScanTest {
     private List<LocalManagementContext> mgmts = Lists.newCopyOnWriteArrayList();
     private List<BrooklynCampPlatformLauncherNoServer> launchers = Lists.newCopyOnWriteArrayList();
 
-    @BeforeMethod(alwaysRun = true)
-    public void setUp() throws Exception {
-        defaultCatalog = null;
-        annotsCatalog = null;
-    }
-    
     /** Override to enable OSGi in the management context for all tests in the class. */
     protected boolean disableOsgi() {
         return true;
@@ -91,7 +84,7 @@ public class CatalogScanTest {
 
     private LocalManagementContext newManagementContext(BrooklynProperties props) {
         final LocalManagementContext localMgmt = LocalManagementContextForTests.builder(true)
-                .setOsgiEnablementAndReuse(disableOsgi(), true)
+                .disableOsgi(disableOsgi())
                 .useProperties(props)
                 .build();
         mgmts.add(localMgmt);

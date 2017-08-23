@@ -379,20 +379,8 @@ public class RebindTestUtils {
     }
     
     public static Application rebind(RebindOptions options) throws Exception {
-        boolean hadApps = true;
-        if (options!=null && options.origManagementContext!=null && options.origManagementContext.getApplications().isEmpty()) {
-            // clearly had no apps before, so don't treat as an error
-            hadApps = false;
-        }
         Collection<Application> newApps = rebindAll(options);
-        if (newApps.isEmpty()) {
-            if (hadApps) {
-                throw new IllegalStateException("Application could not be found after rebind; serialization probably failed");
-            } else {
-                // no apps before; probably testing catalog
-                return null;
-            }
-        }
+        if (newApps.isEmpty()) throw new IllegalStateException("Application could not be found after rebind; serialization probably failed");
         Function<Collection<Application>, Application> chooser = options.applicationChooserOnRebind;
         if (chooser != null) {
             return chooser.apply(newApps);
