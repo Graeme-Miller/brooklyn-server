@@ -367,7 +367,7 @@ public class BasicBrooklynTypeRegistry implements BrooklynTypeRegistry {
         }
         if (Objects.equals(oldType.getContainingBundle(), type.getContainingBundle())) {
             // if named bundles equal then contents must be the same (due to bundle checksum); bail out early
-            if (!samePlan(oldType, type)) {
+            if (!oldType.getPlan().equals(type.getPlan())) {
                 String msg = "Cannot add "+type+" to catalog; different plan in "+oldType+" from same bundle "+
                     type.getContainingBundle()+" is already present";
                 log.debug(msg+"\n"+
@@ -383,7 +383,7 @@ public class BasicBrooklynTypeRegistry implements BrooklynTypeRegistry {
         }
         
         // different bundles, either anonymous or same item in two named bundles
-        if (!samePlan(oldType, type)) {
+        if (!oldType.getPlan().equals(type.getPlan())) {
             // if plan is different, fail
             String msg = "Cannot add "+type+" in "+type.getContainingBundle()+" to catalog; different plan in "+oldType+" from bundle "+
                 oldType.getContainingBundle()+" is already present (throwing)";
@@ -423,10 +423,6 @@ public class BasicBrooklynTypeRegistry implements BrooklynTypeRegistry {
         
         throw new IllegalStateException("Cannot add "+type+" in "+type.getContainingBundle()+" to catalog; "
             + "item  is already present in different bundle "+oldType.getContainingBundle());
-    }
-
-    private boolean samePlan(RegisteredType oldType, RegisteredType type) {
-        return RegisteredTypes.arePlansEquivalent(oldType, type);
     }
 
     @Beta // API stabilising
