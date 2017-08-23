@@ -103,10 +103,5 @@ public class CatalogYamlAppTest extends AbstractYamlTest {
             deleteCatalogEntity("org.apache.brooklyn.entity.stock.BasicApplication");
         }
     }
-
-    @Test
-    public void testAddTemplateForwardReferenceToEntity() throws Exception {
-        addCatalogItems(loadYaml("template-and-app.bom"));
-        createAndStartApplication("services: [ { type: my_app_template } ]");
-    }
+    
 }
