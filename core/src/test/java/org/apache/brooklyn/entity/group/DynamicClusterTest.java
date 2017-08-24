@@ -1409,7 +1409,7 @@ public class DynamicClusterTest extends AbstractDynamicClusterOrFabricTest {
         public void start(Collection<? extends Location> locs) {
             int count = config().get(COUNTER).incrementAndGet();
             try {
-                LOG.debug("{} starting (members={})", new Object[]{this, getParent().sensors().get(AbstractGroup.GROUP_MEMBERS)});
+                LOG.debug("{} starting (first={})", new Object[]{this, sensors().get(AbstractGroup.FIRST_MEMBER)});
                 config().get(START_LATCH);
                 // Throw if more than one entity is starting at the same time as this.
                 assertTrue(count <= config().get(MAX_CONCURRENCY), "expected " + count + " <= " + config().get(MAX_CONCURRENCY));

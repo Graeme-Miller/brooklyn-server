@@ -50,9 +50,11 @@ public interface AbstractGroup extends Entity, Group, Changeable {
     AttributeSensor<Collection<Entity>> GROUP_MEMBERS = Sensors.newSensor(
             new TypeToken<Collection<Entity>>() { }, "group.members", "Members of the group");
 
-    /** @deprecated since 0.12.0 use AbstractGroup.getFirst(Group) if required,
-     * or better use an external enricher or policy to define the primary. */
-    @Deprecated
+    // FIXME should definitely remove this, it is ambiguous if an entity is in multiple clusters.  also should be "is_first" or something to indicate boolean.
+    AttributeSensor<Boolean> FIRST_MEMBER = Sensors.newBooleanSensor(
+            "cluster.first", "Set on an entity if it is the first member of a cluster");
+
+    // FIXME can we remove this too?
     AttributeSensor<Entity> FIRST = Sensors.newSensor(Entity.class,
             "cluster.first.entity", "The first member of the cluster");
 
@@ -85,10 +87,4 @@ public interface AbstractGroup extends Entity, Group, Changeable {
     // FIXME Do we really want this method? "setMembers" is a misleading name
     void setMembers(Collection<Entity> mm, Predicate<Entity> filter);
 
-    public static Entity getFirst(Group g) {
-        Collection<Entity> members = g.sensors().get(AbstractGroup.GROUP_MEMBERS);
-        if (!members.isEmpty()) return members.iterator().next();
-        return null;
-    }
-    
 }

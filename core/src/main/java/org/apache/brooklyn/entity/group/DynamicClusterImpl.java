@@ -868,7 +868,7 @@ public class DynamicClusterImpl extends AbstractGroupImpl implements DynamicClus
             if (entity instanceof Startable) {
                 // First members are used when subsequent members need some attributes from them
                 // before they start; make sure they're in the first batch.
-                boolean privileged = entity.equals(AbstractGroup.getFirst(this));
+                boolean privileged = Boolean.TRUE.equals(entity.sensors().get(AbstractGroup.FIRST_MEMBER));
                 Map<String, ?> args = ImmutableMap.of("locations", MutableList.builder().addIfNotNull(loc).buildImmutable());
                 Task<?> task = newThrottledEffectorTask(entity, Startable.START, args, privileged);
                 tasks.put(entity, task);
